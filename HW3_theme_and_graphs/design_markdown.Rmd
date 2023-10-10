@@ -1,0 +1,93 @@
+---
+title: "design_markdown"
+author: "Timothy Oliver"
+date: "2023-10-10"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE,warning=F,message=F)
+```
+
+```{r other_options}
+options(scipen=999)
+
+library(ggplot2)
+library(viridis)
+# call theme function
+source("plotTheme_TO.R")
+```
+
+## Data Background
+
+Something about data and design choices
+
+```{r data, results='hide'}
+pop_githubs <- read.csv("data/repositories.csv")
+pop_githubs$Language[pop_githubs$Language==""]<-"No Language"
+# table(pop_githubs$Language)
+
+sort(table(pop_githubs$Language))
+top_10_lang<-c("Python","JavaScript","No Language","Java","TypeScript","C++","Go","C","C#","PHP")
+repos_in10Lang<-pop_githubs[pop_githubs$Language %in% top_10_lang,]
+```
+
+## Most Popular Primary Language
+
+This plot aims to show the number of repositories out of the `r nrow(pop_githubs)` total that use the 10 most popular coding languages (among the data). I intend to use `Similarity` and filling the JavaScript and Python bars with a nearby annotation with the same color. Otherwise, I would truly like to set the width to deconflict certain x axis labels and show the full title and label the bars with the count of repositories over having a y-axis. I might be able to change the chart to a horizontal plot if needed.
+
+```{r plot}
+
+# plot of most common by language and 
+p <- ggplot(data = repos_in10Lang,
+            mapping = aes(x=Language))+geom_bar()+
+  labs(x="Primary Coding Language",
+       y= "Repository Count",
+       title = "Popular Github Repository Count by Primary Language",
+       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+
+# display plot
+p
+```
+## Rank Compared to Size
+
+This plot aims to show the relationship between repositories' ranks and sizes. For context, the sizes range from `r min(pop_githubs$size)` to `max(pop_githubs$size)`. I chose a scatterplot initially to show all the data quickly, but I am open to ideas for other plots. One `Gestalt` principle I intend to use is `Enclosure` by having a box or similar shape covering the points representing repositories of 75 MBs or larger to highlight the range in rank and how the majority of popular repositories are small in size. I could further discuss the types of repos with the next plot. Other factors might be labeling the largest and making an annotation of the smallest repo and formatting the title, subtitle, and other elements better.
+
+```{r plot2, echo=FALSE}
+# plot of most common by language and 
+p <- ggplot(data = pop_githubs,
+            mapping = aes(x=as.numeric(rownames(pop_githubs)),y=Size))+geom_point()+
+  labs(x="Popularity Rank",
+       y = "Size of Repository (bytes)",
+       title = "Are Larger Repositories More Popular?",
+       subtitle = "Data Suggests Content Matters Instead",
+       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+
+# display plot
+p
+```
+
+## Constantly Updated
+
+This plot aims to show if popular Github repositories are updated frequently. The date for the last update is used, though I would love to include if a repository has no coding language or some other component. I am unsure of what plot would be best for this alongside the second dimension/property (hence the choice of scatter plot in the rough draft). I am also open to additional recommendations for the Gestalt principle to apply here.
+
+```{r plot3, echo=FALSE}
+# slight data manipulation to make update column simpler
+pop_githubs$updatedDate<-str_split(pop_githubs$Updated.At,"T",simplify=T)[1]
+
+
+# plot of most common by language and 
+p <- ggplot(data = pop_githubs,
+            mapping = aes(x=as.numeric(rownames(pop_githubs)),y=updatedDate))+geom_point()+
+  labs(x="Popularity Rank",
+       y = "Last Updated Date (YYYY-MM-DD)",
+       title = "Users Crave Active Repositories",
+       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+
+# display plot
+p
