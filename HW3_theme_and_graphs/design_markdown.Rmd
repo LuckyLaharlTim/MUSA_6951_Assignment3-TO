@@ -19,6 +19,10 @@ options(scipen=999)
 
 library(ggplot2)
 library(viridis)
+library(packcircles)
+library(ggiraph)
+library(ggalt)
+
 # call theme function
 source("plotTheme_TO.R")
 ```
@@ -39,55 +43,107 @@ repos_in10Lang<-pop_githubs[pop_githubs$Language %in% top_10_lang,]
 
 ## Most Popular Primary Language
 
-This plot aims to show the number of repositories out of the `r nrow(pop_githubs)` total that use the 10 most popular coding languages (among the data). I intend to use `Similarity` and filling the JavaScript and Python bars with a nearby annotation with the same color. Otherwise, I would truly like to set the width to deconflict certain x axis labels and show the full title and label the bars with the count of repositories over having a y-axis. I might be able to change the chart to a horizontal plot if needed.
+This plot aims to show the number of repositories out of the `r nrow(pop_githubs)` total that use the 10 most popular coding languages (as proposed the data). I use `Similarity` in coloration by having the JavaScript and Python bars appear orange. This opposed to the beige that meshes with the background for the other bars highlights the Python and Java's difference in count from the other eight. The bars are also ordered to make the association a bit clearer. Making the plot horizontal helped deconflict text in the labels for the Language axis. I would have liked to have the two bars slightly different colors that matched with the words `Python` and   `JavaScript` in the title and to differentiate them in addition to removing the x axis tick labels. Overall, I think the core message that Python and JavaScript are leagues greater in Github repository representation is clear though.
 
 ```{r plot}
+# x_tick_labs<- names(table(repos_in10Lang$Language))
+# reorder(x_tick_labs,x_tick_labs,function(x)-length(x))
+x_tick_labs<-c("Python","JS","No Language","Java","TypeScript","C++","Go","C","C","PHP")
 
-# plot of most common by language and 
+# plot of most common by language and count
 p <- ggplot(data = repos_in10Lang,
-            mapping = aes(x=Language))+geom_bar()+
+            mapping = aes(x=reorder(Language,Language,function(x)-length(x))))+
+  geom_bar(fill="beige",color="skyblue",linewidth=1)+
+  geom_bar(data=repos_in10Lang[(repos_in10Lang$Language=="Python")|(repos_in10Lang$Language=="JavaScript"),],fill="orange")+
+  geom_text(aes(label=..count..),stat="count",color="brown",hjust=1.5)+
   labs(x="Primary Coding Language",
        y= "Repository Count",
-       title = "Popular Github Repository Count by Primary Language",
-       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+       title = "Python and JavaScript Lead the Pack",
+       subtitle = "as the primary coding language of Popular Github Repositories",
+       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()+coord_flip()# adding +scale_x_discrete(x_tick_labs) did 
 
 # display plot
 p
 ```
 ## Rank Compared to Size
 
-This plot aims to show the relationship between repositories' ranks and sizes. For context, the sizes range from `r min(pop_githubs$size)` to `max(pop_githubs$size)`. I chose a scatterplot initially to show all the data quickly, but I am open to ideas for other plots. One `Gestalt` principle I intend to use is `Enclosure` by having a box or similar shape covering the points representing repositories of 75 MBs or larger to highlight the range in rank and how the majority of popular repositories are small in size. I could further discuss the types of repos with the next plot. Other factors might be labeling the largest and making an annotation of the smallest repo and formatting the title, subtitle, and other elements better.
+This plot aims to show what types of repositories' make up the largest digital size of the popularity list. For context, the sizes range from `r min(pop_githubs$size)` to `max(pop_githubs$size)` in bytes. I chose a proportional area chart (the size of the ovals is based on the size of the represented repository). The `geom_polygon_interactive` function is still a bit of a mystery, but the function naturally uses proximity and positions the larger polygons towards the center. The addition of the group parameter also makes the shading of the polygons close based on size. More work needs to be done to find the sweet spot in number of polygons to show (especially when changing the type), how to manipulate their position, and the degree of labelling.
 
 ```{r plot2, echo=FALSE}
-# plot of most common by language and 
-p <- ggplot(data = pop_githubs,
-            mapping = aes(x=as.numeric(rownames(pop_githubs)),y=Size))+geom_point()+
-  labs(x="Popularity Rank",
-       y = "Size of Repository (bytes)",
-       title = "Are Larger Repositories More Popular?",
-       subtitle = "Data Suggests Content Matters Instead",
-       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+s1<-pop_githubs[order(pop_githubs$Size,decreasing = T),][1:20,]
+s1_name<- s1$Name
+s1_size<- s1$Size
+s1_Rsize<- paste(round(s1$Size/1000000,0)," GB")
+subset<- pop_githubs[pop_githubs$Size>summary(pop_githubs$Size)[5],]
+subset_size<- subset$Size
+packing <- circleProgressiveLayout(s1_size, sizetype='area')
+lim <- cbind(s1, packing)
+dat.gg <- circleLayoutVertices(packing, npoints=50)
+
+# plot of size of repo
+p <- ggplot(data = dat.gg)+
+   geom_polygon_interactive(aes(x, y, group = id, fill=id, tooltip = data$text['id'], data_id = id), colour = "black", alpha = 0.6,show.legend=F) +
+  scale_fill_viridis() +
+  geom_text(data = lim, aes(x, y, label = paste(substring(stringr::str_to_title(s1_name,locale="en"),1,10),"\n",paste0(formatC(as.numeric(round(s1_size/1000000,0)), format="f", digits=0, big.mark=",")," GB"))), size=2, color="black") +
+  labs(title = "Github is a Resource Hub Too",
+       subtitle = "From COVID Data to Tech Indices",
+       caption = "Source: Kaggle,\n10/1/2023 | Canard")
+  theme_test(axes_text=F) +
+  # coord_equal() +
+  theme(legend.position="none", plot.margin=unit(c(0,0,0,0),"cm")) 
+
+# paste0(formatC(as.numeric(round(s1_size/1000,0)), format="f", digits=0, big.mark=",")," MB")
+  #           mapping = aes(x=as.numeric(rownames(pop_githubs)),y=Size))+geom_point()+
+  # labs(x="Popularity Rank",
+  #      y = "Size of Repository (bytes)",
+  #      title = "Are Larger Repositories More Popular?",
+  #      subtitle = "Data Suggests Content Matters Instead",
+  #      caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
 
 # display plot
 p
 ```
 
-## Constantly Updated
+## Popular Github Ages
 
-This plot aims to show if popular Github repositories are updated frequently. The date for the last update is used, though I would love to include if a repository has no coding language or some other component. I am unsure of what plot would be best for this alongside the second dimension/property (hence the choice of scatter plot in the rough draft). I am also open to additional recommendations for the Gestalt principle to apply here.
+This final plot aims to relative ages of popular Github repositories and visual limitations limit this to the top 20-30. A slope graph was chosen to show the differences in ages relatively and to utilize the fixed common update date of all the repositories in the data. Further work could be done to maximize use of Gestalt principles, however.
 
 ```{r plot3, echo=FALSE}
 # slight data manipulation to make update column simpler
-pop_githubs$updatedDate<-str_split(pop_githubs$Updated.At,"T",simplify=T)[1]
+# pop_githubs$updatedDate<-stringr::str_split(pop_githubs$Updated.At,"T",simplify=T)[1]
+# pop_githubs$createdDate<-stringr::str_split(pop_githubs$Created.At,"T",simplify=T)[1]
+# pop_githubs$age<-difftime(pop_githubs$updatedDate,pop_githubs$createdDate)
+
+pop_githubs$updatedDate = stringr::str_split(pop_githubs$Updated.At,"T",simplify=T)[,1]
+pop_githubs$createdDate = stringr::str_split(pop_githubs$Created.At,"T",simplify=T)[,1]
+pop_githubs$age = difftime(updatedDate,createdDate)
 
 
-# plot of most common by language and 
-p <- ggplot(data = pop_githubs,
-            mapping = aes(x=as.numeric(rownames(pop_githubs)),y=updatedDate))+geom_point()+
-  labs(x="Popularity Rank",
-       y = "Last Updated Date (YYYY-MM-DD)",
-       title = "Users Crave Active Repositories",
-       caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+# # plot of most common by language and 
+# p <- ggplot(data = pop_githubs,
+#             mapping = aes(x=as.numeric(rownames(pop_githubs)),y=updatedDate))+geom_point()+
+#   labs(x="Popularity Rank",
+#        y = "Last Updated Date (YYYY-MM-DD)",
+#        title = "Users Crave Active Repositories",
+#        caption = "Source: Kaggle,\n10/1/2023 | Canard")+theme_test()
+# 
+# # display plot
+# p
 
-# display plot
-p
+p <- ggplot(pop_githubs[1:20,], aes(x=createdDate, xend=updatedDate, y=age, group=age)) + 
+        geom_dumbbell(color="#a3c4dc", 
+                      size=0.75, 
+                      point.colour.l="#0e668b") + 
+  # geom_text(data = pop_githubs[1:20,], aes(label = paste0(round(age/365,0)," Years")))+
+        scale_x_discrete(label=c("2013","","","","","","","","","","","","","","","","","","","","2023")) + 
+        labs(x=NULL, 
+             y=NULL, 
+             title="Age of popular repos: Creation vs Last Update",  
+             caption="Source: Kaggle,\n10/1/2023 | Canard") +
+        theme_test()
+plot(p)
+```
+
+```{r to_knit, eval=F}
+rmarkdown::render(input="design_markdown.Rmd",output_format="html_document",output_file="DataViz_Assignment.html")
+```
